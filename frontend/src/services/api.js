@@ -63,7 +63,7 @@ export const clientAPI = {
   // Create new client
   createClient: async (clientData) => {
     try {
-      const response = await apiClient.post('/clients', clientData);
+      const response = await apiClient.post('/clients/', clientData);
       return response.data;
     } catch (error) {
       console.error('Error creating client:', error);
