@@ -11,10 +11,10 @@ import uuid
 from datetime import datetime
 
 # Import routes
-from .routes.clients import router as clients_router
-from .routes.test_results import router as test_results_router
-from .routes.fms_exercises import router as fms_exercises_router
-from .database import close_database
+from routes.clients import router as clients_router
+from routes.test_results import router as test_results_router
+from routes.fms_exercises import router as fms_exercises_router
+from database import close_database
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
