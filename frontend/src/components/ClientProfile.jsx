@@ -1,31 +1,50 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { ArrowLeft, Calendar, Mail, Phone, Briefcase, User, Plus, TrendingUp } from "lucide-react";
-import { mockClients, mockTestResults } from "../data/mockData";
+import { ArrowLeft, Calendar, Mail, Phone, Briefcase, User, Plus, TrendingUp, Loader2 } from "lucide-react";
+import { clientAPI, testResultAPI } from "../services/api";
+import { useToast } from "../hooks/use-toast";
 
 const ClientProfile = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
-  const [client] = useState(mockClients.find(c => c.id === clientId));
-  const [testResults] = useState(mockTestResults.filter(test => test.clientId === clientId));
+  const { toast } = useToast();
+  const [client, setClient] = useState(null);
+  const [testResults, setTestResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!client) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="text-center py-8">
-            <p className="text-gray-500">Client not found</p>
-            <Button onClick={() => navigate("/")} className="mt-4">
-              Return to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetchClientData();
+  }, [clientId]);
+
+  const fetchClientData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch client and test results in parallel
+      const [clientData, testResultsData] = await Promise.all([
+        clientAPI.getClient(clientId),
+        testResultAPI.getClientTestResults(clientId)
+      ]);
+      
+      setClient(clientData);
+      setTestResults(testResultsData);
+    } catch (error) {
+      console.error('Error fetching client data:', error);
+      setError('Failed to load client data. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to load client data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString();
@@ -49,6 +68,37 @@ const ClientProfile = () => {
     }
     return age;
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="text-lg text-gray-700">Loading client data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !client) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
+          <CardContent className="text-center py-8">
+            <p className="text-red-500 mb-4">{error || "Client not found"}</p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => navigate("/")} variant="outline">
+                Return to Dashboard
+              </Button>
+              <Button onClick={fetchClientData} className="bg-blue-600 hover:bg-blue-700 text-white">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -93,7 +143,7 @@ const ClientProfile = () => {
                   <Phone className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Phone</p>
-                    <p className="font-medium">{client.phone}</p>
+                    <p className="font-medium">{client.phone || 'Not provided'}</p>
                   </div>
                 </div>
                 
@@ -101,7 +151,7 @@ const ClientProfile = () => {
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Age</p>
-                    <p className="font-medium">{calculateAge(client.dateOfBirth)} years</p>
+                    <p className="font-medium">{calculateAge(client.date_of_birth)} years</p>
                   </div>
                 </div>
                 
@@ -109,20 +159,20 @@ const ClientProfile = () => {
                   <Briefcase className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Occupation</p>
-                    <p className="font-medium">{client.occupation}</p>
+                    <p className="font-medium">{client.occupation || 'Not specified'}</p>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-gray-600">Total Tests</span>
-                    <span className="font-bold text-blue-600">{client.totalTests}</span>
+                    <span className="font-bold text-blue-600">{client.total_tests || 0}</span>
                   </div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-gray-600">Latest Score</span>
-                    {client.latestScore ? (
-                      <Badge className={`${getScoreColor(client.latestScore)} border-0`}>
-                        {client.latestScore}/21
+                    {client.latest_score ? (
+                      <Badge className={`${getScoreColor(client.latest_score)} border-0`}>
+                        {client.latest_score}/21
                       </Badge>
                     ) : (
                       <span className="text-gray-500">No tests yet</span>
@@ -131,7 +181,7 @@ const ClientProfile = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Last Test</span>
                     <span className="font-medium">
-                      {client.lastTestDate ? formatDate(client.lastTestDate) : "No tests yet"}
+                      {client.last_test_date ? formatDate(client.last_test_date) : "No tests yet"}
                     </span>
                   </div>
                 </div>
@@ -179,14 +229,14 @@ const ClientProfile = () => {
                           <div className="flex justify-between items-start">
                             <div>
                               <CardTitle className="text-lg">
-                                Test - {formatDate(test.testDate)}
+                                Test - {formatDate(test.test_date)}
                               </CardTitle>
                               <CardDescription>
-                                Total Score: {test.totalScore}/21
+                                Total Score: {test.total_score}/21
                               </CardDescription>
                             </div>
-                            <Badge className={`${getScoreColor(test.totalScore)} border-0`}>
-                              {test.totalScore}/21
+                            <Badge className={`${getScoreColor(test.total_score)} border-0`}>
+                              {test.total_score}/21
                             </Badge>
                           </div>
                         </CardHeader>
@@ -207,12 +257,12 @@ const ClientProfile = () => {
                             ))}
                           </div>
                           
-                          {test.assessorNotes && (
+                          {test.assessor_notes && (
                             <div className="bg-gray-50 p-3 rounded-lg">
                               <p className="text-sm font-medium text-gray-700 mb-1">
                                 Assessor Notes:
                               </p>
-                              <p className="text-sm text-gray-600">{test.assessorNotes}</p>
+                              <p className="text-sm text-gray-600">{test.assessor_notes}</p>
                             </div>
                           )}
                           

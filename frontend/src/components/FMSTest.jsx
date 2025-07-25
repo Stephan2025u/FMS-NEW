@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { ArrowLeft, ArrowRight, CheckCircle, AlertCircle } from "lucide-react";
-import { mockClients, fmsExercises } from "../data/mockData";
+import { ArrowLeft, ArrowRight, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { clientAPI, fmsExercisesAPI, testResultAPI } from "../services/api";
 import ExerciseScoring from "./ExerciseScoring";
 import { useToast } from "../hooks/use-toast";
 
@@ -13,27 +13,46 @@ const FMSTest = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [client] = useState(mockClients.find(c => c.id === clientId));
+  const [client, setClient] = useState(null);
+  const [fmsExercises, setFmsExercises] = useState([]);
   const [currentExercise, setCurrentExercise] = useState(0);
   const [testData, setTestData] = useState({
     scores: {},
-    assessorNotes: ""
+    assessor_notes: ""
   });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  if (!client) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="text-center py-8">
-            <p className="text-gray-500">Client not found</p>
-            <Button onClick={() => navigate("/")} className="mt-4">
-              Return to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetchInitialData();
+  }, [clientId]);
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch client and FMS exercises in parallel
+      const [clientData, exercisesData] = await Promise.all([
+        clientAPI.getClient(clientId),
+        fmsExercisesAPI.getExercises()
+      ]);
+      
+      setClient(clientData);
+      setFmsExercises(exercisesData);
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
+      setError('Failed to load test data. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to load test data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateExerciseScore = (exerciseId, scoreData) => {
     setTestData(prev => ({
@@ -73,26 +92,36 @@ const FMSTest = () => {
     return Object.values(testData.scores).reduce((total, score) => total + (score.score || 0), 0);
   };
 
-  const handleCompleteTest = () => {
-    const totalScore = calculateTotalScore();
-    const testResult = {
-      id: `test-${Date.now()}`,
-      clientId: client.id,
-      testDate: new Date().toISOString(),
-      scores: testData.scores,
-      totalScore: totalScore,
-      assessorNotes: testData.assessorNotes
-    };
+  const handleCompleteTest = async () => {
+    try {
+      setSubmitting(true);
+      
+      // Prepare test data for API
+      const testResultData = {
+        client_id: client.id,
+        scores: testData.scores,
+        assessor_notes: testData.assessor_notes || null
+      };
 
-    // Mock saving test result
-    localStorage.setItem(`test-${testResult.id}`, JSON.stringify(testResult));
-    
-    toast({
-      title: "Test Completed",
-      description: `FMS test completed with a total score of ${totalScore}/21.`,
-    });
+      // Create test result
+      const testResult = await testResultAPI.createTestResult(testResultData);
+      
+      toast({
+        title: "Test Completed",
+        description: `FMS test completed with a total score of ${testResult.total_score}/21.`,
+      });
 
-    navigate(`/results/${testResult.id}`);
+      navigate(`/results/${testResult.id}`);
+    } catch (error) {
+      console.error('Error completing test:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save test results. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const isTestComplete = () => {
@@ -110,6 +139,37 @@ const FMSTest = () => {
     }
     return index === currentExercise ? "current" : "pending";
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="text-lg text-gray-700">Loading test data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !client || !fmsExercises.length) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
+          <CardContent className="text-center py-8">
+            <p className="text-red-500 mb-4">{error || "Failed to load test data"}</p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => navigate("/")} variant="outline">
+                Return to Dashboard
+              </Button>
+              <Button onClick={fetchInitialData} className="bg-blue-600 hover:bg-blue-700 text-white">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const progress = ((currentExercise + 1) / fmsExercises.length) * 100;
 
@@ -199,7 +259,7 @@ const FMSTest = () => {
                   <div>
                     <h4 className="font-medium text-gray-900 mb-2">Scoring Criteria:</h4>
                     <div className="space-y-2">
-                      {Object.entries(fmsExercises[currentExercise].scoringCriteria).map(([score, criteria]) => (
+                      {Object.entries(fmsExercises[currentExercise].scoring_criteria).map(([score, criteria]) => (
                         <div key={score} className="flex items-start gap-2">
                           <Badge
                             variant={score === "0" ? "destructive" : "secondary"}
@@ -256,11 +316,20 @@ const FMSTest = () => {
           ) : (
             <Button
               onClick={handleCompleteTest}
-              disabled={!isTestComplete()}
+              disabled={!isTestComplete() || submitting}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
-              Complete Test
-              <CheckCircle className="h-4 w-4 ml-2" />
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  Complete Test
+                  <CheckCircle className="h-4 w-4 ml-2" />
+                </>
+              )}
             </Button>
           )}
         </div>
