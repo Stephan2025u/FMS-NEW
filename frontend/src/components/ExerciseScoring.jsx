@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -8,9 +8,16 @@ import { Label } from "./ui/label";
 import { AlertTriangle } from "lucide-react";
 
 const ExerciseScoring = ({ exercise, currentScore, onScoreUpdate }) => {
-  const [score, setScore] = useState(currentScore?.score || null);
-  const [pain, setPain] = useState(currentScore?.pain || false);
-  const [notes, setNotes] = useState(currentScore?.notes || "");
+  const [score, setScore] = useState(currentScore?.score ?? null);
+  const [pain, setPain] = useState(currentScore?.pain ?? false);
+  const [notes, setNotes] = useState(currentScore?.notes ?? "");
+
+  // Update local state when currentScore changes (e.g., when switching exercises)
+  useEffect(() => {
+    setScore(currentScore?.score ?? null);
+    setPain(currentScore?.pain ?? false);
+    setNotes(currentScore?.notes ?? "");
+  }, [currentScore, exercise.id]);
 
   const handleScoreChange = (newScore) => {
     setScore(newScore);
@@ -23,20 +30,15 @@ const ExerciseScoring = ({ exercise, currentScore, onScoreUpdate }) => {
 
   const handlePainChange = (newPain) => {
     setPain(newPain);
+    const newScore = newPain ? 0 : score;
     if (newPain) {
       setScore(0);
-      onScoreUpdate(exercise.id, {
-        score: 0,
-        pain: newPain,
-        notes: notes
-      });
-    } else {
-      onScoreUpdate(exercise.id, {
-        score: score,
-        pain: newPain,
-        notes: notes
-      });
     }
+    onScoreUpdate(exercise.id, {
+      score: newScore,
+      pain: newPain,
+      notes: notes
+    });
   };
 
   const handleNotesChange = (newNotes) => {
@@ -119,7 +121,7 @@ const ExerciseScoring = ({ exercise, currentScore, onScoreUpdate }) => {
                       {scoreValue === 3 && "Optimal Performance"}
                     </p>
                     <p className="text-xs text-gray-600">
-                      {exercise.scoringCriteria[scoreValue]}
+                      {exercise.scoring_criteria[scoreValue]}
                     </p>
                   </div>
                 </div>
