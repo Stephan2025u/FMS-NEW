@@ -87,7 +87,7 @@ async def get_test_result(
         # Convert score dicts back to ExerciseScore objects
         for exercise_id, score_data in test_result["scores"].items():
             if isinstance(score_data, dict):
-                from ..models.test_result import ExerciseScore
+                from models.test_result import ExerciseScore
                 test_result["scores"][exercise_id] = ExerciseScore(**score_data)
         
         return TestResult(**test_result)
