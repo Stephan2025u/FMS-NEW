@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from ..models.test_result import TestResult, TestResultCreate
-from ..database import get_database
+from models.test_result import TestResult, TestResultCreate
+from database import get_database
 from datetime import datetime
 import logging
 
