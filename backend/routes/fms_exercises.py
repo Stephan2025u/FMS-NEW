@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from typing import List
-from ..models.fms_exercise import FMSExercise, FMS_EXERCISES
+from models.fms_exercise import FMSExercise, FMS_EXERCISES
 
 router = APIRouter(prefix="/fms-exercises", tags=["fms-exercises"])
 
