@@ -146,7 +146,7 @@ export const fmsExercisesAPI = {
   // Get all FMS exercises
   getExercises: async () => {
     try {
-      const response = await apiClient.get('/fms-exercises');
+      const response = await apiClient.get('/fms-exercises/');
       return response.data;
     } catch (error) {
       console.error('Error fetching FMS exercises:', error);
