@@ -121,7 +121,7 @@ export const testResultAPI = {
   // Create new test result
   createTestResult: async (testData) => {
     try {
-      const response = await apiClient.post('/test-results', testData);
+      const response = await apiClient.post('/test-results/', testData);
       return response.data;
     } catch (error) {
       console.error('Error creating test result:', error);
