@@ -41,7 +41,7 @@ export const clientAPI = {
   // Get all clients
   getClients: async () => {
     try {
-      const response = await apiClient.get('/clients');
+      const response = await apiClient.get('/clients/');
       return response.data;
     } catch (error) {
       console.error('Error fetching clients:', error);
